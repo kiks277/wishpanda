@@ -57,3 +57,52 @@ body {
 .animate-dot-1 { animation: dotPulse 1.4s ease-in-out 0s infinite; }
 .animate-dot-2 { animation: dotPulse 1.4s ease-in-out 0.2s infinite; }
 .animate-dot-3 { animation: dotPulse 1.4s ease-in-out 0.4s infinite; }
+
+/* Legal page typography */
+.legal-content h2 {
+  font-family: 'Quicksand', sans-serif;
+  font-weight: 800;
+  font-size: 1.25rem;
+  color: #3a3a3a;
+  margin-top: 2rem;
+  margin-bottom: 0.75rem;
+}
+
+.legal-content h2:first-child {
+  margin-top: 0;
+}
+
+.legal-content p {
+  color: #8a8a7a;
+  font-size: 0.938rem;
+  line-height: 1.7;
+  margin-bottom: 1rem;
+}
+
+.legal-content ul {
+  color: #8a8a7a;
+  font-size: 0.938rem;
+  line-height: 1.7;
+  margin-bottom: 1rem;
+  padding-left: 1.5rem;
+  list-style-type: disc;
+}
+
+.legal-content li {
+  margin-bottom: 0.35rem;
+}
+
+.legal-content a {
+  color: #D2B986;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.legal-content a:hover {
+  text-decoration: underline;
+}
+
+.legal-content strong {
+  color: #3a3a3a;
+  font-weight: 700;
+}
