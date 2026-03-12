@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase'
 import PandaIcon from '@/components/ui/PandaIcon'
 import PandaLogo from '@/components/ui/PandaLogo'
 import AdBanner from '@/components/layout/AdBanner'
+import NotificationBell from '@/components/ui/NotificationBell'
 
 export default function DashboardPage() {
   const [user, setUser] = useState(null)
@@ -15,6 +16,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const router = useRouter()
   const supabase = createClient()
+  const [messages, setMessages] = useState([])
 
   // Load user data and wishlists on page load
   useEffect(() => {
@@ -45,7 +47,18 @@ export default function DashboardPage() {
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
       setWishlists(wishlistData || [])
-
+      
+      // Load surprise messages for all user's wishlists
+      const wishlistIds = (wishlistData || []).map(w => w.id)
+        if (wishlistIds.length > 0) {
+          const { data: messagesData } = await supabase
+            .from('messages')
+            .select('*, gifts(name)')
+            .in('wishlist_id', wishlistIds)
+            .order('created_at', { ascending: false })
+            .limit(10)
+            setMessages(messagesData || [])
+        }
       setLoading(false)
     }
     loadData()
@@ -105,6 +118,8 @@ export default function DashboardPage() {
             >
               {profile?.plan_type || 'free'}
             </span>
+            <NotificationBell userId={user?.id} />
+
             <button
               onClick={handleLogout}
               className="text-sm text-panda-mid font-semibold hover:text-panda-dark transition-colors"
@@ -195,10 +210,32 @@ export default function DashboardPage() {
             ))}
           </div>
         )}
+        
+        {/* Surprise Messages */}
+        {messages.length > 0 && (
+          <div className="mt-6">
+           <h3 className="font-bold text-base text-panda-dark mb-3">💌 Surprise Messages</h3>
+          <div className="flex flex-col gap-2">
+         {messages.map((msg) => (
+           <div key={msg.id} className="bg-white rounded-2xl p-4 shadow-sm border border-panda-cream animate-fade-in">
+             <div className="flex items-start justify-between">
+               <div>
+                <span className="font-bold text-sm text-panda-dark">{msg.name || 'Anonymous'}</span>
+                <span className="text-xs text-panda-mid ml-2">for {msg.gifts?.name || 'a gift'}</span>
+              </div>
+              </div>
+              <p className="text-sm text-panda-mid mt-1">{msg.message}</p>
+            </div>
+      ))}
+    </div>
+  </div>
+)}
 
         {/* Bottom ad */}
         {profile?.plan_type !== 'pro' && <AdBanner position="bottom" />}
       </div>
     </div>
   )
+
+
 }

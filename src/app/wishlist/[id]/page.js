@@ -11,17 +11,25 @@ import GiftCard from '@/components/gifts/GiftCard'
 import ManualGiftForm from '@/components/gifts/ManualGiftForm'
 import UpgradeModal from '@/components/ui/UpgradeModal'
 import AdBanner from '@/components/layout/AdBanner'
+import ShareCard from '@/components/wishlist/ShareCard'
+import { EVENT_TYPES } from '@/utils/constants'
+import EditGiftModal from '@/components/gifts/EditGiftModal'
 
 export default function WishlistEditPage() {
   const { id } = useParams()
   const router = useRouter()
   const supabase = createClient()
+  const [showShareCard, setShowShareCard] = useState(false)
 
   // State
   const [wishlist, setWishlist] = useState(null)
   const [gifts, setGifts] = useState([])
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [isEditingTitle, setIsEditingTitle] = useState(false)
+  const [editTitle, setEditTitle] = useState('')
+  const [editEventType, setEditEventType] = useState('')
+  const [editingGift, setEditingGift] = useState(null)
 
   // UI panels
   const [showGenerator, setShowGenerator] = useState(false)
@@ -78,10 +86,49 @@ export default function WishlistEditPage() {
       setGifts(giftsData || [])
 
       setLoading(false)
+
+              // Add after setWishlist(wishlistData):
+    setEditTitle(wishlistData?.title || '')
+    setEditEventType(wishlistData?.event_type || '')
     }
+
     loadData()
+
   }, [id])
 
+  //Save Function
+  async function handleSaveTitle() {
+  const { error } = await supabase
+    .from('wishlists')
+    .update({ title: editTitle, event_type: editEventType })
+    .eq('id', id)
+
+  if (!error) {
+    setWishlist(prev => ({ ...prev, title: editTitle, event_type: editEventType }))
+    setIsEditingTitle(false)
+    showToast('Wishlist updated!')
+    }
+  }
+
+  //Save for UpdatedGift
+
+  async function handleSaveGift(updatedGift) {
+  const { error } = await supabase
+    .from('gifts')
+    .update({
+      name: updatedGift.name,
+      price: updatedGift.price,
+      link: updatedGift.link,
+      description: updatedGift.description,
+    })
+    .eq('id', updatedGift.id)
+
+  if (!error) {
+    setGifts(prev => prev.map(g => g.id === updatedGift.id ? { ...g, ...updatedGift } : g))
+    setEditingGift(null)
+    showToast('Gift updated!')
+  }
+}
   // Generate AI suggestions
   function handleGenerate() {
     if (!isPro && genCount >= FREE_PLAN_LIMITS.maxGenerateRefreshes) {
@@ -192,6 +239,15 @@ export default function WishlistEditPage() {
             </svg>
             Back
           </button>
+          
+          <button
+            onClick={() => setShowShareCard(true)}
+             className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-bold
+              text-white bg-panda-gold hover:bg-panda-gold-dark transition-colors"
+          >
+          📤 Share
+          </button>
+          
           <button
             onClick={() => router.push(`/w/${wishlist.public_slug}`)}
             className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-bold
@@ -203,18 +259,64 @@ export default function WishlistEditPage() {
             </svg>
             Preview
           </button>
+          
         </div>
 
-        {/* Title */}
-        <div className="mb-5 animate-fade-in">
-          <h2 className="font-display font-extrabold text-2xl text-panda-dark">
-            {wishlist.title}
-          </h2>
-          <p className="text-sm text-panda-mid mt-1">
-            {wishlist.event_type}
-            {wishlist.hobbies?.length > 0 && ` · ${wishlist.hobbies.join(', ')}`}
-          </p>
-        </div>
+        {/* Title — editable */}
+<div className="mb-5 animate-fade-in">
+  {isEditingTitle ? (
+    <div className="bg-white rounded-2xl p-4 shadow-sm border border-panda-gold/30">
+      <input
+        type="text"
+        value={editTitle}
+        onChange={(e) => setEditTitle(e.target.value)}
+        className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 bg-panda-light
+                   text-panda-dark text-sm font-bold focus:border-panda-gold focus:outline-none
+                   transition-colors mb-3"
+      />
+      <div className="flex flex-wrap gap-2 mb-3">
+        {EVENT_TYPES.map((et) => (
+          <button key={et} onClick={() => setEditEventType(et)}
+            className={`px-3 py-1.5 rounded-full text-xs font-semibold border-2 transition-all
+                       ${editEventType === et
+                         ? 'bg-panda-gold text-white border-panda-gold'
+                         : 'bg-white text-panda-dark border-gray-200'}`}>
+            {et}
+          </button>
+        ))}
+      </div>
+      <div className="flex gap-2">
+        <button onClick={handleSaveTitle}
+          className="px-5 py-2 rounded-full text-sm font-bold text-white bg-panda-gold">
+          Save
+        </button>
+        <button onClick={() => setIsEditingTitle(false)}
+          className="px-5 py-2 rounded-full text-sm font-bold text-panda-mid">
+          Cancel
+        </button>
+      </div>
+    </div>
+  ) : (
+    <div className="flex items-start justify-between">
+      <div>
+        <h2 className="font-display font-extrabold text-2xl text-panda-dark">
+          {wishlist.title}
+        </h2>
+        <p className="text-sm text-panda-mid mt-1">
+          {wishlist.event_type}
+          {wishlist.hobbies?.length > 0 && ` · ${wishlist.hobbies.join(', ')}`}
+        </p>
+      </div>
+      <button onClick={() => setIsEditingTitle(true)}
+        className="p-2 rounded-xl hover:bg-panda-light transition-colors text-panda-mid">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+          <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
+          <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
+        </svg>
+      </button>
+    </div>
+  )}
+</div>
 
         {/* Share link */}
         <div className="bg-panda-gold/10 border-2 border-panda-gold/20 rounded-2xl p-3.5
@@ -357,11 +459,25 @@ export default function WishlistEditPage() {
                   key={gift.id}
                   gift={gift}
                   onDelete={handleDeleteGift}
+                   onEdit={setEditingGift}
                 />
+
+                
+                
               ))}
             </div>
+            
           )}
+          {editingGift && (
+                  <EditGiftModal
+                    gift={editingGift}
+                     onSave={handleSaveGift}
+                   onClose={() => setEditingGift(null)}
+                  />
+                )}
         </div>
+
+        
 
         {/* Ad banner */}
         {!isPro && <AdBanner position="bottom" />}
@@ -376,6 +492,16 @@ export default function WishlistEditPage() {
 
         {/* Upgrade modal */}
         {showUpgrade && <UpgradeModal onClose={() => setShowUpgrade(false)} />}
+        {showShareCard && (
+          <ShareCard
+            title={wishlist.title}
+            eventType={wishlist.event_type}
+            ownerName={profile?.display_name || profile?.email?.split('@')[0]}
+            giftCount={gifts.length}
+            onClose={() => setShowShareCard(false)}
+          />
+        )}
+          
       </div>
     </div>
   )

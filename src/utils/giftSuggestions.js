@@ -80,6 +80,15 @@ GIFT_DATABASE.Christmas.Gaming = [
   { name: 'Gaming Keyboard (Mechanical)', price: 79, link: 'https://amazon.com', description: 'RGB backlit with tactile switches' },
 ]
 
+// Fix links to search by product title on Amazon
+function fixAmazonLink(gift) {
+  const searchQuery = gift.name.replace(/\s+/g, '+')
+  return {
+    ...gift,
+    link: `https://www.amazon.com/s?k=${searchQuery}`,
+  }
+}
+
 // Generate suggestions: picks 3 random gifts based on event + hobbies
 export function generateSuggestions(eventType, hobbies) {
   const eventGifts = GIFT_DATABASE[eventType] || GIFT_DATABASE.Birthday
@@ -101,5 +110,5 @@ export function generateSuggestions(eventType, hobbies) {
 
   // Shuffle and pick 3
   const shuffled = pool.sort(() => Math.random() - 0.5)
-  return shuffled.slice(0, 3)
+  return shuffled.slice(0, 3).map(fixAmazonLink)
 }

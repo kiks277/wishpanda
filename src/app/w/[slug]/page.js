@@ -7,7 +7,7 @@ import { createClient } from '@/lib/supabase'
 import PandaLogo from '@/components/ui/PandaLogo'
 import PandaIcon from '@/components/ui/PandaIcon'
 import AdBanner from '@/components/layout/AdBanner'
-
+import SurpriseMessageModal from '@/components/gifts/SurpriseMessageModal'
 export default function PublicWishlistPage() {
   const { slug } = useParams()
   const supabase = createClient()
@@ -18,6 +18,8 @@ export default function PublicWishlistPage() {
   const [notFound, setNotFound] = useState(false)
   const [justChosen, setJustChosen] = useState(null)
   const [toast, setToast] = useState(null)
+  const [showMessageModal, setShowMessageModal] = useState(false)
+  const [pendingGiftId, setPendingGiftId] = useState(null)
 
   function showToast(message) {
     setToast(message)
@@ -27,26 +29,43 @@ export default function PublicWishlistPage() {
   // Load wishlist by slug
   useEffect(() => {
     async function loadWishlist() {
-      // Find the wishlist by its public slug
-      const { data: wishlistData, error } = await supabase
+      // Try regular wishlists first
+      let { data: wishlistData } = await supabase
         .from('wishlists')
         .select('*')
         .eq('public_slug', slug)
         .single()
 
-      if (error || !wishlistData) {
-        setNotFound(true)
-        setLoading(false)
-        return
+      let isTemp = false
+
+      // If not found, try temp wishlists
+      if (!wishlistData) {
+        const { data: tempData } = await supabase
+          .from('temp_wishlists')
+          .select('*')
+          .eq('public_slug', slug)
+          .single()
+
+        if (!tempData) {
+          setNotFound(true)
+          setLoading(false)
+          return
+        }
+
+        wishlistData = tempData
+        isTemp = true
       }
 
-      setWishlist(wishlistData)
+      setWishlist({ ...wishlistData, isTemp })
 
-      // Load all gifts for this wishlist
+      // Load gifts from the appropriate table
+      const giftsTable = isTemp ? 'temp_gifts' : 'gifts'
+      const foreignKey = isTemp ? 'temp_wishlist_id' : 'wishlist_id'
+
       const { data: giftsData } = await supabase
-        .from('gifts')
+        .from(giftsTable)
         .select('*')
-        .eq('wishlist_id', wishlistData.id)
+        .eq(foreignKey, wishlistData.id)
         .order('sort_order', { ascending: true })
 
       setGifts(giftsData || [])
@@ -87,41 +106,69 @@ export default function PublicWishlistPage() {
   }, [wishlist])
 
   // Mark a gift as chosen
-  async function handleMarkChosen(giftId) {
-    // Check if already chosen
-    const gift = gifts.find(g => g.id === giftId)
-    if (gift?.status === 'chosen') return
+ async function handleMarkChosen(giftId) {
+  const gift = gifts.find(g => g.id === giftId)
+  if (gift?.status === 'chosen') return
 
-    // Update the gift status in the database
-    const { error } = await supabase
-      .from('gifts')
-      .update({ status: 'chosen' })
-      .eq('id', giftId)
+  // Show surprise message modal first
+  setPendingGiftId(giftId)
+  setShowMessageModal(true)
+}
 
-    if (error) {
-      showToast('Something went wrong. Please try again.')
-      return
-    }
+async function completeMarkChosen(messageData) {
+  const giftId = pendingGiftId
+  setShowMessageModal(false)
+  setPendingGiftId(null)
 
-    // Also create a selection record
-    await supabase
-      .from('gift_selections')
-      .insert({
-        gift_id: giftId,
-        selected_by: 'Anonymous visitor',
-      })
+  // Update gift status
+  const { error } = await supabase
+    .from('gifts')
+    .update({ status: 'chosen' })
+    .eq('id', giftId)
 
-    // Update local state immediately (don't wait for real-time)
-    setGifts(prev =>
-      prev.map(g => g.id === giftId ? { ...g, status: 'chosen' } : g)
-    )
-
-    // Show animation on the card
-    setJustChosen(giftId)
-    setTimeout(() => setJustChosen(null), 1500)
-
-    showToast('Gift marked as chosen! 🎉')
+  if (error) {
+    showToast('Something went wrong. Please try again.')
+    return
   }
+
+  // Create selection record
+  await supabase.from('gift_selections').insert({
+    gift_id: giftId,
+    selected_by: messageData?.name || 'Anonymous visitor',
+  })
+
+  // Save surprise message if provided
+  if (messageData?.message) {
+    await supabase.from('messages').insert({
+      wishlist_id: wishlist.id,
+      gift_id: giftId,
+      name: messageData.name || 'Anonymous',
+      message: messageData.message,
+    })
+  }
+
+  // Create notification for wishlist owner
+  const gift = gifts.find(g => g.id === giftId)
+  if (wishlist.user_id) {
+    await supabase.from('notifications').insert({
+      user_id: wishlist.user_id,
+      type: 'gift_claimed',
+      message: `Someone reserved "${gift?.name}" from your wishlist "${wishlist.title}"`,
+      gift_id: giftId,
+      wishlist_id: wishlist.id,
+    })
+  }
+
+  // Update local state
+  setGifts(prev => prev.map(g => g.id === giftId ? { ...g, status: 'chosen' } : g))
+  setJustChosen(giftId)
+  setTimeout(() => setJustChosen(null), 1500)
+  showToast('Gift marked as chosen! 🎉')
+}
+
+function handleSkipMessage() {
+  completeMarkChosen({ name: 'Anonymous' })
+}
 
   // Loading state
   if (loading) {
@@ -299,6 +346,25 @@ export default function PublicWishlistPage() {
           </div>
         )}
 
+        {/* Viral loop banner */}
+      <div className="bg-white rounded-2xl p-5 shadow-sm border border-panda-cream text-center mt-6 animate-fade-in">
+       <div className="text-3xl mb-2">🎁</div>
+        <h3 className="font-display font-extrabold text-lg text-panda-dark">
+          Create your own wishlist in 10 seconds
+        </h3>
+        <p className="text-sm text-panda-mid mt-1">
+          No sign-up required. Share with friends and avoid duplicate gifts.
+         </p>
+       <button
+         onClick={() => window.location.href = '/try'}
+         className="mt-4 px-8 py-3 rounded-full font-bold text-white text-sm
+               bg-gradient-to-r from-panda-gold to-panda-gold-dark
+               shadow-md hover:shadow-lg transition-all"
+        >
+          Create Mine 🐼
+         </button>
+      </div>
+
         {/* Footer */}
         <div className="text-center py-8 text-sm text-panda-mid">
           Made with 🐼 <span className="font-bold">WishPanda</span>
@@ -306,6 +372,14 @@ export default function PublicWishlistPage() {
 
         {/* Bottom ad */}
         <AdBanner position="bottom" />
+
+        {showMessageModal && (
+          <SurpriseMessageModal
+            giftName={gifts.find(g => g.id === pendingGiftId)?.name || 'this gift'}
+            onSubmit={completeMarkChosen}
+           onSkip={handleSkipMessage}
+          />
+        )}
 
         {/* Toast */}
         {toast && (
