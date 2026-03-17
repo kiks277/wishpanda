@@ -8,6 +8,7 @@ import LoadingScreen from '@/components/ui/LoadingScreen'
 import OnboardingScreen from '@/components/ui/OnboardingScreen'
 import PandaLogo from '@/components/ui/PandaLogo'
 import PandaIcon from '@/components/ui/PandaIcon'
+import { cleanupExpiredStorage } from '@/utils/storage'
 
 export default function Home() {
   const [screen, setScreen] = useState('loading')
@@ -15,6 +16,7 @@ export default function Home() {
   const supabase = createClient()
 
   useEffect(() => {
+    cleanupExpiredStorage()
     const timer = setTimeout(() => {
       checkNextScreen()
     }, 2500)

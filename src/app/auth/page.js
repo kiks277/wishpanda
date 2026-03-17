@@ -13,12 +13,19 @@ export default function AuthPage() {
   const [error, setError] = useState(null)
   const router = useRouter()
   const supabase = createClient()
+  const [agreedToTerms, setAgreedToTerms] = useState(false)
 
   // Handle email/password login or signup
   async function handleSubmit(e) {
     e.preventDefault()
     setLoading(true)
     setError(null)
+    // Validate terms agreement for signup
+  if (!isLogin && !agreedToTerms) {
+    setError('You must agree to the Terms of Service and Privacy Policy')
+    setLoading(false)
+    return
+  }
 
     try {
       if (isLogin) {
@@ -122,10 +129,34 @@ export default function AuthPage() {
           />
         </div>
 
+      {/* Terms checkbox — only show on signup */}
+      {!isLogin && (
+  <div className="mt-4 flex items-start gap-2">
+    <input
+      type="checkbox"
+      id="terms"
+      checked={agreedToTerms}
+      onChange={(e) => setAgreedToTerms(e.target.checked)}
+      className="mt-1 w-4 h-4 rounded border-gray-300 text-panda-gold
+                 focus:ring-panda-gold cursor-pointer accent-panda-gold"
+    />
+    <label htmlFor="terms" className="text-xs text-panda-mid leading-relaxed cursor-pointer">
+      I agree to the{' '}
+      <a href="/terms" target="_blank" className="text-panda-gold font-semibold hover:underline">
+        Terms of Service
+      </a>{' '}
+      and{' '}
+      <a href="/privacy" target="_blank" className="text-panda-gold font-semibold hover:underline">
+        Privacy Policy
+      </a>
+    </label>
+  </div>
+)}
+
         {/* Submit button */}
         <button
           onClick={handleSubmit}
-          disabled={loading || !email || !password}
+          disabled={loading || !email || !password || (!isLogin && !agreedToTerms)}
           className="w-full mt-6 py-3 rounded-full font-bold text-white text-sm
                      bg-gradient-to-r from-panda-gold to-panda-gold-dark
                      shadow-md hover:shadow-lg transition-all
@@ -162,7 +193,7 @@ export default function AuthPage() {
         <p className="mt-6 text-sm text-panda-mid">
           {isLogin ? "Don't have an account? " : "Already have an account? "}
           <span
-            onClick={() => { setIsLogin(!isLogin); setError(null) }}
+            onClick={() => { setIsLogin(!isLogin); setError(null); setAgreedToTerms(false) }}
             className="text-panda-gold font-bold cursor-pointer hover:underline"
           >
             {isLogin ? 'Sign up' : 'Log in'}

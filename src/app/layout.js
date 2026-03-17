@@ -1,6 +1,7 @@
 // src/app/layout.js
 import './globals.css'
 import Footer from '@/components/layout/Footer'
+import CookieConsent from '@/components/ui/CookieConsent'
 
 export const metadata = {
   title: 'WishPanda — Create & Share Gift Wishlists',
@@ -16,6 +17,7 @@ export default function RootLayout({ children }) {
           {children}
         </main>
         <Footer />
+        <CookieConsent />
       </body>
     </html>
   )

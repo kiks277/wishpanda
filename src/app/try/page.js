@@ -11,6 +11,8 @@ import PandaLogo from '@/components/ui/PandaLogo'
 import PandaIcon from '@/components/ui/PandaIcon'
 import GiftCard from '@/components/gifts/GiftCard'
 import ManualGiftForm from '@/components/gifts/ManualGiftForm'
+import { setWithExpiry } from '@/utils/storage'
+import TempDisclaimer from '@/components/ui/TempDisclaimer'
 
 export default function TryFreePage() {
   const router = useRouter()
@@ -138,8 +140,8 @@ export default function TryFreePage() {
 
     // Save session for later claiming
     try {
-      localStorage.setItem('wishpanda_temp_session', sessionId)
-      localStorage.setItem('wishpanda_temp_slug', slug)
+    setWithExpiry('wishpanda_temp_session', sessionId, 30)  // Expires in 30 minutes
+    setWithExpiry('wishpanda_temp_slug', slug, 30)
     } catch {}
 
     setPublicSlug(slug)
@@ -447,6 +449,10 @@ export default function TryFreePage() {
             >
               Copy
             </button>
+          </div>
+
+          <div className="mt-4">
+            <TempDisclaimer />
           </div>
 
           {/* Action buttons */}

@@ -498,6 +498,7 @@ export default function WishlistEditPage() {
             eventType={wishlist.event_type}
             ownerName={profile?.display_name || profile?.email?.split('@')[0]}
             giftCount={gifts.length}
+            slug={wishlist.public_slug}
             onClose={() => setShowShareCard(false)}
           />
         )}
