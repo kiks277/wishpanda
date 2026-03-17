@@ -2,6 +2,7 @@
 import './globals.css'
 import Footer from '@/components/layout/Footer'
 import CookieConsent from '@/components/ui/CookieConsent'
+import { Analytics } from "@vercel/analytics/next"
 
 export const metadata = {
   title: 'WishPanda — Create & Share Gift Wishlists',
